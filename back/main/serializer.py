@@ -31,3 +31,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         
         return user
 # User Register
+
+class SearchClassesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassModel
+        fields = '__all__'

@@ -9,6 +9,7 @@ AddBookmark,
 RemoveBookmark,
 GetOneClass,
 ModifyClass,
+SearchClasses
 )
 
 urlpatterns = [
@@ -26,4 +27,6 @@ urlpatterns = [
     path('api/user/bookmarks/remove-bookmark/', RemoveBookmark.as_view(), name='remove_bookmark'),
 
     path('api/teacher/classes', GetTeacherClasses.as_view(), name='get_teacher_classes'),
+
+    path('api/search/classes', SearchClasses.as_view(), name='search_classes'),
 ]

@@ -2,10 +2,12 @@ from rest_framework.generics import ListAPIView, CreateAPIView, UpdateAPIView, D
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.http import JsonResponse
-from main.models import Bookmarks, ClassModel, DaysOfTheWeek
+from main.models import Bookmarks, ClassModel, DaysOfTheWeek, Profile
 from django.contrib.auth.models import User
-from main.serializer import RegisterSerializer
-    
+from main.serializer import RegisterSerializer, SearchClassesSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from django.db.models import Min, Max, Q
 # TODO search between classes for bookmarking
 
 class GetBookmarks(ListAPIView):
@@ -19,23 +21,34 @@ class GetBookmarks(ListAPIView):
             classes = users_bookmarks.bookmarks.values("id", "title", "bookmark",
             "days_of_the_week", "state", "state_id", "teacher", "teacher_id", "time_end", "time_start", )
 
+            # for i,cls in enumerate(classes):
+            #     techer_name = Profile.objects.get(id= cls["teacher_id"])
+            #     classes[i]["teacher"] = techer_name.user.username
+                # return Response(list(classes), status=200)
+
+
             classes = list(classes)
             day_week = []
             ids = []
             flag = []
             big_return_list = []
-            for cls in classes:
-                if cls["id"] not in ids:
+            for i,cls in enumerate(classes):
+                techer_name = Profile.objects.get(id= cls["teacher_id"])# add teacher name to bookmark
+                classes[i]["teacher"] = techer_name.user.first_name
+
+                if cls["id"] not in ids:# trying to remove unnesseri multiple bookmarks that only thair week_day was diffent
                     ids.append(cls["id"])
-            for id in ids:
+
+            for i,id in enumerate(ids):
                 day_week = []
                 for cl in classes:
+                    
                     if id == cl["id"]:
                         if cl["id"] not in flag:
                             big_return_list.append(cl)
                             flag.append(cl["id"])
                         day_week.append(cl["days_of_the_week"])
-                big_return_list.append(day_week)
+                big_return_list[i]["days_of_the_week"] = day_week
             return Response(big_return_list, status=200)
         except Exception as e:
             return Response({'ERROR:': str(e)}, status=404)
@@ -55,23 +68,27 @@ class GetTeacherClasses(ListAPIView):
             classes = ClassModel.objects.filter(teacher = user.profile).values("id", "title", "bookmark",
             "days_of_the_week", "state", "state_id", "teacher", "teacher_id", "time_end", "time_start", )
             classes = list(classes)
-
             day_week = []
             ids = []
             flag = []
             big_return_list = []
-            for cls in classes:
-                if cls["id"] not in ids:
+            for i,cls in enumerate(classes):
+                techer_name = Profile.objects.get(id= cls["teacher_id"])# add teacher name to bookmark
+                classes[i]["teacher"] = techer_name.user.first_name
+
+                if cls["id"] not in ids:# trying to remove unnesseri multiple bookmarks that only thair week_day was diffent
                     ids.append(cls["id"])
-            for id in ids:
+
+            for i,id in enumerate(ids):
                 day_week = []
                 for cl in classes:
+                    
                     if id == cl["id"]:
                         if cl["id"] not in flag:
                             big_return_list.append(cl)
                             flag.append(cl["id"])
                         day_week.append(cl["days_of_the_week"])
-                big_return_list.append(day_week)
+                big_return_list[i]["days_of_the_week"] = day_week
             return Response(big_return_list)
 
         except Exception as e:
@@ -195,3 +212,66 @@ class ModifyClass(UpdateAPIView):
         except Exception as e:
             return Response({'ERROR': str(e)}, status=404)
 # update class
+
+class SearchClasses(ListAPIView):
+    permission_classes = [AllowAny,]
+    # queryset = ClassModel.objects.filter(title__contains='ر')
+    serializer_class = SearchClassesSerializer
+    # def get(self, request):
+    #     title = self.request.GET.get('title', None)
+    #     classes = list(ClassModel.objects.filter(title__contains=title).values("id", "title", "bookmark",
+    #          "state", "state_id", "teacher", "teacher_id", "time_end", "time_start", ))
+
+    #     return(Response(classes))
+
+
+    # def get_queryset(self):
+    #     try:
+    #         title = self.request.GET.get('title', None)
+    #         if not title or title == "" or title == None or title == "%D8%B1%DB%8C%D8%A7" or title == "undefined":
+    #             return ClassModel.objects.filter(title="Error")
+    #             return Response({'ERROR': "title can't be empty"}, status=404)
+    #         return ClassModel.objects.filter(title__contains=title)
+    #     except Exception as e:
+    #         return ClassModel.objects.filter(title="Error")
+    #         return Response({'ERROR': str(e)}, status=404)
+    
+    def get(self, requests):
+        try:
+            title = self.request.GET.get('title', None)
+            classes = list(ClassModel.objects.filter(title__contains = title).values("id", "title", "bookmark",
+              "state", "state_id", "teacher", "teacher_id", "time_end", "time_start", "days_of_the_week"))
+
+            day_week = []
+            ids = []
+            flag = []
+            big_return_list = []
+            for i,cls in enumerate(classes):
+                techer_name = Profile.objects.get(id= cls["teacher_id"])# add teacher name to bookmark
+                classes[i]["teacher"] = techer_name.user.first_name
+
+                if cls["id"] not in ids:# trying to remove unnesseri multiple bookmarks that only thair week_day was diffent
+                    ids.append(cls["id"])
+
+            for i,id in enumerate(ids):
+                day_week = []
+                for cl in classes:
+                    
+                    if id == cl["id"]:
+                        if cl["id"] not in flag:
+                            big_return_list.append(cl)
+                            flag.append(cl["id"])
+                        if(cl["days_of_the_week"] not in day_week):
+                            day_week.append(cl["days_of_the_week"])
+                big_return_list[i]["days_of_the_week"] = day_week
+            return Response(big_return_list, status=200)
+        except Exception as e:
+            return Response({'ERROR:': str(e)}, status=404)
+
+
+
+    # filter_backends = (filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend)
+    # filter_backends = [DjangoFilterBackend]
+    # search_fields = ['^title',]
+    # filterset_fields = ['title',]
+    # filter_backends = [filters.SearchFilter]
